@@ -34,6 +34,6 @@ conda install -c bioconda cd-hit
 ```
 Usage:
 ```
-python exonerate_protein_prediction.py [proteome.fasta] [genome.fasta] [threads] [genetic code (interger)]
+python exonerate_protein_prediction.py [proteome.fasta] [genome.fasta] [threads] [genetic code (integer)]
 ```
 
