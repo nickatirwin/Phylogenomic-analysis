@@ -55,7 +55,7 @@ sites_to_extract.sort()
 sites_to_extract = [str(x) for x in sites_to_extract]
 
 # write out the filtered alignment
-out = open(sys.argv[2]+'.'+str(float(sys.argv[3])*100)+'fsr','w')
+out = open(sys.argv[1]+'.'+str(float(sys.argv[3])*100)+'fsr','w')
 for seq in list(aln_d.keys()):
     out.write('>'+seq+'\n')
     for s in sites_to_extract:
