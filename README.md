@@ -1,9 +1,5 @@
 # Phylogenomic-analysis
 
-Useful scripts for conducting phylogenomic analyses.
-
-## Overview
-
 A series of scripts that are useful for analyzing phylogenomic data (e.g., working with phylogenomic trees and comparative genomics).
 
 ## Scripts
