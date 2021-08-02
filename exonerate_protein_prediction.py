@@ -28,12 +28,30 @@ print('\nPredicting proteins for genome: ' + sys.argv[2] + '\nUsing proteins fro
 print('Start time: ' + str(datetime.now()))
 subprocess.call('mkdir temp/', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
+def header_cleaner(s):
+    clean_s = s.replace('*','').replace('|','_').replace(';','_').replace(',','_').replace('(','').replace(')','').replace('[','').replace(']','').replace('/','')
+    return clean_s
+
+# rename protein and genome file
+proteins = open(sys.argv[1],'r').read().split('>')
+out = open('temp/proteins.renamed.fasta','w')
+for p in proteins[1:]:
+    out.write('>'+header_cleaner(p.split('\n')[0].split(' ')[0])+'\n'+p.split('\n',1)[1].strip().replace('*','')+'\n')
+out.close()
+
+genome = open(sys.argv[2],'r').read().split('>')
+out = open('temp/genome.renamed.fasta','w')
+for s in genome[1:]:
+    out.write('>'+header_cleaner(s.split('\n')[0].split(' ')[0])+'\n'+s.split('\n',1)[1].strip().replace('*','')+'\n')
+out.close()
+
+
 # map proteins to genome using tblastn
 print('\nMapping proteins to genome using tBLASTn...')
 # Make blast databases
-subprocess.call('makeblastdb -in ' + sys.argv[2] + ' -out temp/' + sys.argv[2] + '.db -dbtype nucl', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+subprocess.call('makeblastdb -in temp/genome.renamed.fasta -out temp/genome.renamed.fasta.db -dbtype nucl', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 # find homologs using tblastn
-subprocess.call('tblastn -query ' + sys.argv[1] + ' -db temp/' + sys.argv[2] + '.db -max_target_seqs 100 -num_threads ' + sys.argv[3] + ' -evalue 1e-5 -outfmt 6 -out temp/genome_mapping.tblastn -db_gencode ' + sys.argv[4], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+subprocess.call('tblastn -query temp/proteins.renamed.fasta -db temp/genome.renamed.fasta.db -max_target_seqs 100 -num_threads ' + sys.argv[3] + ' -evalue 1e-5 -outfmt 6 -out temp/genome_mapping.tblastn -db_gencode ' + sys.argv[4], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 
 # go through blast outputs and identify homology regions
@@ -79,7 +97,7 @@ m = 1
 blast_d[q+'_'+str(m)] = [h,prev_start,prev_stop,prev_strand]
 
 # go through blast output file
-for line in blast[1:]:
+for line in blast:
     strand = strand_check(line)
     ss = start_stop(line,strand)
     start, stop = ss[0], ss[1]
@@ -93,9 +111,11 @@ for line in blast[1:]:
             q, h, prev_start, prev_stop, prev_strand = line.split('\t')[0], line.split('\t')[1], start, stop, strand
             blast_d[q+'_'+str(m)] = [line.split('\t')[1],prev_start,prev_stop,prev_strand]
     elif (line.split('\t')[0] == q) and (line.split('\t')[1] == h) and (prev_strand != strand):
+        m += 1
         q, h, prev_start, prev_stop, prev_strand = line.split('\t')[0], line.split('\t')[1], start, stop, strand
-        blast_d[q+'_'+str(m)] = [line.split('\t')[1],prev_start,prev_stop,prev_strand]    
+        blast_d[q+'_'+str(m)] = [line.split('\t')[1],prev_start,prev_stop,prev_strand] 
     elif (line.split('\t')[0] == q) and (line.split('\t')[1] != h):
+        m += 1
         q, h, prev_start, prev_stop, prev_strand = line.split('\t')[0], line.split('\t')[1], start, stop, strand
         blast_d[q+'_'+str(m)] = [line.split('\t')[1],prev_start,prev_stop,prev_strand]
     elif (line.split('\t')[0] != q):
@@ -108,7 +128,7 @@ subprocess.call('mkdir temp/sequences/', shell = True, stdout=subprocess.DEVNULL
 
 # proteins
 print('Extracting sequences...')
-proteins = open(sys.argv[1],'r').read().split('>')[1:]
+proteins = open('temp/proteins.renamed.fasta','r').read().split('>')[1:]
 protein_d = {}
 for p in proteins:
     protein_d[p.split('\n')[0]] = p.split('\n',1)[1].replace('\n','')
@@ -131,7 +151,7 @@ def reverse_complement(seq):
             complement += 'C'
     return complement
 
-genome = open(sys.argv[2],'r').read().split('>')[1:]
+genome = open('temp/genome.renamed.fasta','r').read().split('>')[1:]
 genome_d = {}
 homology_d = {}
 for s in genome:
@@ -148,7 +168,7 @@ for i in blast_d:
 
 # run exonerate
 print('Using Exonerate to identify exons...')
-subprocess.call("find temp/sequences/ -type f -name '*.homology.fasta' | awk -F '.homology.fasta' '{print $1}' | cut -f 3 -d '/' | parallel -j " + sys.argv[3] + " 'exonerate -m p2g  --geneticcode " + sys.argv[4] + " --maxintron 20000 --score 100 --showtargetgff -q temp/sequences/{}.fasta -t temp/sequences/{}.homology.fasta | egrep -w exon > temp/sequences/{}.exon.gff'", shell = True)
+subprocess.call("find temp/sequences/ -type f -name '*.homology.fasta' | awk -F '.homology.fasta' '{print $1}' | cut -f 3 -d '/' | parallel -j " + sys.argv[3] + " 'exonerate -m p2g  --geneticcode " + sys.argv[4] + " --maxintron 20000 --score 50 --proteinwordlimit 10 --showtargetgff -q temp/sequences/{}.fasta -t temp/sequences/{}.homology.fasta | egrep -w exon > temp/sequences/{}.exon.gff'", shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 # extract coding regions and combine gff files into one final file
 print('Extracting coding regions...')
@@ -161,9 +181,28 @@ for seq in blast_d:
     if len(gff) == 0:
         continue
     else:
+        start = int(gff[0].split('\t')[3])
+        stop =  int(gff[0].split('\t')[4])
         sequence = ''
         for hit in gff:
-            sequence += homology_d[seq][int(hit.split('\t')[3])-1:int(hit.split('\t')[4])]
+            if (int(hit.split('\t')[3]) < stop) and (int(hit.split('\t')[4]) > stop):
+                extract_end = int(hit.split('\t')[4])
+                extract_start = stop + 1
+                stop = extract_end
+                start = start
+            elif (int(hit.split('\t')[3]) < start) and (int(hit.split('\t')[4]) > start):
+                extract_start = int(hit.split('\t')[3])
+                extract_end = start-1
+                stop = stop
+                start = extract_start
+            else:
+                extract_start = (int(hit.split('\t')[3]))
+                extract_end = (int(hit.split('\t')[4]))
+                if extract_start < start:
+                    start = extract_start
+                if extract_end > stop:
+                    stop = extract_end
+            sequence += homology_d[seq][extract_start-1:extract_end]
         out.write('>seq'+str(n)+'.'+seq+'_'+blast_d[seq][0]+'\n'+sequence+'\n')
         n += 1
 out.close()
@@ -179,7 +218,7 @@ out.close()
 
 # blast proteins to initial dataset
 print('Comparing predicted proteins to original proteome...')
-subprocess.call('diamond makedb --in ' + sys.argv[1] + ' --db temp/proteins.db', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+subprocess.call('diamond makedb --in temp/proteins.renamed.fasta --db temp/proteins.db', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 subprocess.call('diamond blastp -c1 --query temp/translation.fasta --max-target-seqs 1 --db temp/proteins.db --outfmt 6 --sensitive --evalue 1e-5 --out temp/translation.blastp --threads ' + sys.argv[3], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 # record blast results
 blast = open('temp/translation.blastp', 'r').readlines()
@@ -224,5 +263,5 @@ print('Clustering resulting proteins at 99%...')
 subprocess.call('cd-hit -i results/'+sys.argv[2]+'.proteins.fasta -c 0.99 -o temp/cluster -M 4000 -T ' + sys.argv[3], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 subprocess.call('mv temp/cluster results/'+sys.argv[2]+'.proteins.fasta',shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-subprocess.call('rm -r temp/',shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-print('\nFinish time: ' + str(datetime.now()))
+subprocess.call('rm -r temp/sequences',shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+print('Predicted proteins and CDS in results directory\nFinish time: ' + str(datetime.now()))
