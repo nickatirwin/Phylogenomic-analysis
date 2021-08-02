@@ -126,7 +126,7 @@ for line in blast:
 # write out all sequences for exonerate
 subprocess.call('mkdir temp/sequences/', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-# proteins
+# record protein sequences
 print('Extracting sequences...')
 proteins = open('temp/proteins.renamed.fasta','r').read().split('>')[1:]
 protein_d = {}
@@ -168,9 +168,9 @@ for i in blast_d:
 
 # run exonerate
 print('Using Exonerate to identify exons...')
-subprocess.call("find temp/sequences/ -type f -name '*.homology.fasta' | awk -F '.homology.fasta' '{print $1}' | cut -f 3 -d '/' | parallel -j " + sys.argv[3] + " 'exonerate -m p2g  --geneticcode " + sys.argv[4] + " --maxintron 20000 --score 50 --proteinwordlimit 10 --showtargetgff -q temp/sequences/{}.fasta -t temp/sequences/{}.homology.fasta | egrep -w exon > temp/sequences/{}.exon.gff'", shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+subprocess.call("find temp/sequences/ -type f -name '*.homology.fasta' | awk -F '.homology.fasta' '{print $1}' | cut -f 3 -d '/' | parallel -j " + sys.argv[3] + " 'exonerate -m p2g  --geneticcode " + sys.argv[4] + " --maxintron 20000 --score 50 --showtargetgff -q temp/sequences/{}.fasta -t temp/sequences/{}.homology.fasta | egrep -w exon > temp/sequences/{}.exon.gff'", shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-# extract coding regions and combine gff files into one final file
+# extract coding regions
 print('Extracting coding regions...')
 subprocess.call('mkdir results/', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 out = open('results/'+sys.argv[2]+'.cds.fasta','w')
