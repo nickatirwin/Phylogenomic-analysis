@@ -1,13 +1,15 @@
 # exonerate_protein_prediction.py 
 
 '''
-Predict proteins from a genome using exonerate and protein predictions from a transcriptome.
+Predict proteins from a genome using exonerate and a given proteome as a query (eg. proteome from
+a closely related genome(s) or a transcriptome(s)).
 
-Results are in results/ (.proteins.fasta)
+Protein predictions and coding regions are in results/.
 
 usage: python exonerate_protein_prediction.py [proteins.fasta] [genome.fasta] [threads] [genetic code (int)]
 
 dependencies:
+
 # exonerate
 conda install -c bioconda exonerate
 # blast
@@ -28,11 +30,12 @@ print('\nPredicting proteins for genome: ' + sys.argv[2] + '\nUsing proteins fro
 print('Start time: ' + str(datetime.now()))
 subprocess.call('mkdir temp/', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
+# rename headers in protein and genome files to make them compatible with the script
+
 def header_cleaner(s):
     clean_s = s.replace('*','').replace('|','_').replace(';','_').replace(',','_').replace('(','').replace(')','').replace('[','').replace(']','').replace('/','')
     return clean_s
 
-# rename protein and genome file
 proteins = open(sys.argv[1],'r').read().split('>')
 out = open('temp/proteins.renamed.fasta','w')
 for p in proteins[1:]:
@@ -45,31 +48,23 @@ for s in genome[1:]:
     out.write('>'+header_cleaner(s.split('\n')[0].split(' ')[0])+'\n'+s.split('\n',1)[1].strip().replace('*','')+'\n')
 out.close()
 
-
 # map proteins to genome using tblastn
+
 print('\nMapping proteins to genome using tBLASTn...')
 # Make blast databases
 subprocess.call('makeblastdb -in temp/genome.renamed.fasta -out temp/genome.renamed.fasta.db -dbtype nucl', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-# find homologs using tblastn
-subprocess.call('tblastn -query temp/proteins.renamed.fasta -db temp/genome.renamed.fasta.db -max_target_seqs 100 -num_threads ' + sys.argv[3] + ' -evalue 1e-5 -outfmt 6 -out temp/genome_mapping.tblastn -db_gencode ' + sys.argv[4], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+# find homologs using tblastn - take the best hit (-max_target_seqs 1, -evalue 1e-5)
+subprocess.call('tblastn -query temp/proteins.renamed.fasta -db temp/genome.renamed.fasta.db -max_target_seqs 1 -num_threads ' + sys.argv[3] + ' -evalue 1e-5 -outfmt 6 -out temp/genome_mapping.tblastn -db_gencode ' + sys.argv[4], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-
-# go through blast outputs and identify homology regions
+# go through blast outputs and identify homology regions (take the max upstream and minumum downstream sites based on all HSPs)
 print('Parsing blast output...')
 
-'''
-Record query and each hit, joining the hsps into a full coding region.
-Note each hit for each query and if there are mutliple hits on the 
-same scaffold treat them as different hits if they are far away
-from the previous hsp (2000 bp - max gap size is 2000 bp).
-'''
-
-# adjust maximum intron size here
+# define the maximum gap size - eg. if multiple hits on one scaffold
 max_gap_size = 2000
 
 # load in blast files
 blast = open('temp/genome_mapping.tblastn','r').readlines()
-blast_d = {} # query_m: [scaffold, start, stop, strand]
+blast_d = {} # query_m: [scaffold, [start/stops], strand]
 
 def strand_check(blast_line):
     if int(blast_line.split('\t')[8]) > int(blast_line.split('\t')[9]):
@@ -87,46 +82,46 @@ def start_stop(blast_line, strand):
         stop = int(blast_line.split('\t')[8])
     return [start, stop]
 
-# record initial hit        
-q = blast[0].split('\t')[0]
-h = blast[0].split('\t')[1]
-prev_strand = strand_check(blast[0])
-ss = start_stop(blast[0],prev_strand)
-prev_start, prev_stop = ss[0], ss[1]
-m = 1
-blast_d[q+'_'+str(m)] = [h,prev_start,prev_stop,prev_strand]
+# parse blast file to identify homology regions and strand info
 
-# go through blast output file
+previous_strand = strand_check(blast[0])
+previous_start, previous_stop = start_stop(blast[0],previous_strand)[0], start_stop(blast[0],previous_strand)[1]
+previous_query = blast[0].split('\t')[0]
+
 for line in blast:
-    strand = strand_check(line)
-    ss = start_stop(line,strand)
-    start, stop = ss[0], ss[1]
-    if (line.split('\t')[0] == q) and (line.split('\t')[1] == h) and (prev_strand == strand):
-        if (start > prev_stop) and (start-prev_stop < max_gap_size):
-            blast_d[q+'_'+str(m)][2] = stop
-        elif (stop < prev_start) and (prev_start-stop < max_gap_size):
-            blast_d[q+'_'+str(m)][1] = start
-        else:
-            m += 1
-            q, h, prev_start, prev_stop, prev_strand = line.split('\t')[0], line.split('\t')[1], start, stop, strand
-            blast_d[q+'_'+str(m)] = [line.split('\t')[1],prev_start,prev_stop,prev_strand]
-    elif (line.split('\t')[0] == q) and (line.split('\t')[1] == h) and (prev_strand != strand):
-        m += 1
-        q, h, prev_start, prev_stop, prev_strand = line.split('\t')[0], line.split('\t')[1], start, stop, strand
-        blast_d[q+'_'+str(m)] = [line.split('\t')[1],prev_start,prev_stop,prev_strand] 
-    elif (line.split('\t')[0] == q) and (line.split('\t')[1] != h):
-        m += 1
-        q, h, prev_start, prev_stop, prev_strand = line.split('\t')[0], line.split('\t')[1], start, stop, strand
-        blast_d[q+'_'+str(m)] = [line.split('\t')[1],prev_start,prev_stop,prev_strand]
-    elif (line.split('\t')[0] != q):
-        m = 1
-        q, h, prev_start, prev_stop, prev_strand = line.split('\t')[0], line.split('\t')[1], start, stop, strand
-        blast_d[q+'_'+str(m)] = [line.split('\t')[1],prev_start,prev_stop,prev_strand]
+    if (line.split('\t')[0] == previous_query):
+        strand = strand_check(line)
+        start, stop = start_stop(line,strand)
+        if (abs(stop-previous_start) < max_gap_size) or (abs(start-previous_stop) < max_gap_size):
+            try:
+                blast_d[line.split('\t')[0]+'_1'][1] += [int(line.split('\t')[8]),int(line.split('\t')[9])]
+            except:
+                blast_d[line.split('\t')[0]+'_1'] = [line.split('\t')[1],[int(line.split('\t')[8]),int(line.split('\t')[9])],0,strand_check(line)]
+            if start < previous_start:
+                previous_start = start
+            if stop > previous_stop:
+                previous_stop = stop
+    else:
+        try:
+            blast_d[line.split('\t')[0]+'_1'][1] += [int(line.split('\t')[8]),int(line.split('\t')[9])]
+        except:
+            blast_d[line.split('\t')[0]+'_1'] = [line.split('\t')[1],[int(line.split('\t')[8]),int(line.split('\t')[9])],0,strand_check(line)]
+        previous_strand = strand_check(line)
+        previous_start, previous_stop = start_stop(line,previous_strand)[0], start_stop(line,previous_strand)[1]
+        previous_query = line.split('\t')[0]        
+        
+for s in blast_d:
+    stop = max(blast_d[s][1])
+    start = min(blast_d[s][1])
+    blast_d[s][1] = start
+    blast_d[s][2] = stop
 
-# write out all sequences for exonerate
+# write out all homology regions and coresponding proteins for use with exonerate
+
+# create sequences directory
 subprocess.call('mkdir temp/sequences/', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-# record protein sequences
+# write fasta files for each protein sequence
 print('Extracting sequences...')
 proteins = open('temp/proteins.renamed.fasta','r').read().split('>')[1:]
 protein_d = {}
@@ -137,7 +132,8 @@ for p in blast_d:
     out.write('>'+p+'\n'+protein_d[p.rsplit('_',1)[0]]+'\n')
     out.close()
 
-# extract regions mapping to genome scaffolds
+# write fasta files for each homology region (reverse complement if mapping to the negative strand)
+
 def reverse_complement(seq):
     complement = ''
     for b in seq.upper()[::-1]:
@@ -166,11 +162,13 @@ for i in blast_d:
         homology_d[i] = reverse_complement(genome_d[blast_d[i][0]][blast_d[i][1]-1:blast_d[i][2]])
     out.close()
 
-# run exonerate
-print('Using Exonerate to identify exons...')
-subprocess.call("find temp/sequences/ -type f -name '*.homology.fasta' | awk -F '.homology.fasta' '{print $1}' | cut -f 3 -d '/' | parallel -j " + sys.argv[3] + " 'exonerate -m p2g  --geneticcode " + sys.argv[4] + " --maxintron 20000 --score 50 --showtargetgff -q temp/sequences/{}.fasta -t temp/sequences/{}.homology.fasta | egrep -w exon > temp/sequences/{}.exon.gff'", shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+# run exonerate - runs in parallel (1 job per thread) - score threshold = 50, intron parameters are generic and probably don't need to be changed (min size is crucial)
 
-# extract coding regions
+print('Using Exonerate to identify exons...')
+subprocess.call("find temp/sequences/ -type f -name '*.homology.fasta' | awk -F '.homology.fasta' '{print $1}' | cut -f 3 -d '/' | parallel -j " + sys.argv[3] + " 'exonerate -m p2g --geneticcode " + sys.argv[4] + " --maxintron 20000 --minintron 0 --score 50 --showtargetgff -q temp/sequences/{}.fasta -t temp/sequences/{}.homology.fasta | egrep -w exon > temp/sequences/{}.exon.gff'", shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
+# extract coding regions based on exonerate exons and write to CDS fasta in results/ - if exons overlap, join them
+
 print('Extracting coding regions...')
 subprocess.call('mkdir results/', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 out = open('results/'+sys.argv[2]+'.cds.fasta','w')
@@ -184,7 +182,9 @@ for seq in blast_d:
         start = int(gff[0].split('\t')[3])
         stop =  int(gff[0].split('\t')[4])
         sequence = ''
-        for hit in gff:
+        extract_d = {start:stop}
+        extract_starts = [start]
+        for hit in gff[1:]:
             if (int(hit.split('\t')[3]) < stop) and (int(hit.split('\t')[4]) > stop):
                 extract_end = int(hit.split('\t')[4])
                 extract_start = stop + 1
@@ -202,36 +202,46 @@ for seq in blast_d:
                     start = extract_start
                 if extract_end > stop:
                     stop = extract_end
-            sequence += homology_d[seq][extract_start-1:extract_end]
+            extract_d[extract_start] = extract_end
+            extract_starts.append(extract_start)
+        extract_starts.sort()
+        for s in extract_starts:
+            sequence += homology_d[seq][s-1:extract_d[s]]
         out.write('>seq'+str(n)+'.'+seq+'_'+blast_d[seq][0]+'\n'+sequence+'\n')
         n += 1
 out.close()
 
 # translate proteins using fastatranslate
+
 print('Translating coding regions...')
 subprocess.call('fastatranslate -f results/'+sys.argv[2]+'.cds.fasta --geneticcode ' + sys.argv[4] + ' > temp/translation.fasta',shell = True,stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-# clean headers
+
+# clean the gnarly headers
+
 translations = open('temp/translation.fasta','r').read()
 out = open('temp/translation.fasta','w')
 out.write(translations.replace(' ','_').replace(':','_').replace('[','').replace(']','').replace('(','').replace(')','')) 
 out.close()
 
-# blast proteins to initial dataset
+# blast proteins to initial dataset to compare - we will only take proteins that had homologs in the query dataset - seems to reduce noise without compromising data
+
 print('Comparing predicted proteins to original proteome...')
 subprocess.call('diamond makedb --in temp/proteins.renamed.fasta --db temp/proteins.db', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 subprocess.call('diamond blastp -c1 --query temp/translation.fasta --max-target-seqs 1 --db temp/proteins.db --outfmt 6 --sensitive --evalue 1e-5 --out temp/translation.blastp --threads ' + sys.argv[3], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
 # record blast results
 blast = open('temp/translation.blastp', 'r').readlines()
 protein_blast_d = {}
 for line in blast:
     protein_blast_d[line.split('\t')[0]] = [line.split('\t')[1], float(line.split('\t')[-2])]
 
-# identify the best translation per protein (longest and with best blast hit)
+# record translated proteins
 translation = open('temp/translation.fasta','r').read().split('>')[1:]
 translation_d = {}
 for seq in translation:
     translation_d[seq.split('\n')[0]] = seq.split('\n',1)[1].replace('\n','')
-    
+
+# identify the best translation per protein (longest and with best (lowest e-value) blast hit) - translations are done in all 6 frames
 seq_d = {}
 for p in translation_d:
     try:
@@ -249,19 +259,22 @@ for p in translation_d:
         except:
             seq_d[p.split('.')[0]] = [translation_d[p],'NA','NA',len(translation_d[p].replace('*',''))]
     
-# output the predicted proteins and cluster at 100%
+# output the predicted proteins and cluster at 99% - reduces redundancy but this can be changed to 100% on line 274 (change '-c 0.99' to '-c 1.0')
+
 print('Writing finished proteins...')
 out = open('results/'+sys.argv[2]+'.proteins.fasta','w')
 for seq in seq_d:
     sequence = max(seq_d[seq][0].split('*')) # split at stop codons - take the longest uninterupted sequence
-    if (len(sequence) > 50) and (seq_d[seq][1] != 'NA'):
+    if seq_d[seq][1] != 'NA':
         out.write('>'+seq+'\n'+sequence+'\n')
 out.close()
 
-# cluster genes at 99%
+# cluster proteins
 print('Clustering resulting proteins at 99%...')
 subprocess.call('cd-hit -i results/'+sys.argv[2]+'.proteins.fasta -c 0.99 -o temp/cluster -M 4000 -T ' + sys.argv[3], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 subprocess.call('mv temp/cluster results/'+sys.argv[2]+'.proteins.fasta',shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
+# finish
+
 subprocess.call('rm -r temp/sequences',shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-print('Predicted proteins and CDS in results directory\nFinish time: ' + str(datetime.now()))
+print('\nPredicted proteins and CDS in results directory\nFinish time: ' + str(datetime.now())+'\n')
