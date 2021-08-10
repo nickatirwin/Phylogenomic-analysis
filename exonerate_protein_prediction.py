@@ -4,7 +4,7 @@
 Predict proteins from a genome using exonerate and a given proteome as a query (eg. proteome from
 a closely related genome(s) or a transcriptome(s)).
 
-Protein predictions and coding regions are in results/.
+Protein predictions, coding regions, and a gff file are in results/.
 
 usage: python exonerate_protein_prediction.py [proteins.fasta] [genome.fasta] [threads] [genetic code (int)]
 
