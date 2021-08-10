@@ -219,7 +219,7 @@ for seq in blast_d:
             else:
                 gff_start = str(blast_d[seq][2]-s)
                 gff_end = str(blast_d[seq][2]-extract_d[s])
-                gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_start+'\t'+gff_end+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+';Exon='+str(len(extract_starts)-c)+'\n')
+                gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_start+'\t'+gff_end+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+';Exon='+str(len(extract_starts)-c+1)+'\n')
             c += 1
         out.write('>seq'+str(n)+'.'+seq+'_'+blast_d[seq][0]+'\n'+sequence+'\n')
         # ouput to gff fileseq
