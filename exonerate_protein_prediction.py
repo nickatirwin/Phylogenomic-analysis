@@ -174,7 +174,7 @@ subprocess.call('mkdir results/', shell = True, stdout=subprocess.DEVNULL, stder
 out = open('results/'+sys.argv[2]+'.cds.fasta','w')
 
 gffout = open('results/'+sys.argv[2]+'.gff','w')
-gffout.write('## gff-version 3.2.1\n## assembly: ' + sys.argv[2] + '\n')
+gffout.write('## gff-version 3.2.1\n## assembly: ' + sys.argv[2] + '\n## template: ' + sys.argv[1].replace('.renamed','')+'\n')
 
 n = 1
 for seq in blast_d:
@@ -291,6 +291,5 @@ subprocess.call('cd-hit -i results/'+sys.argv[2]+'.proteins.fasta -c 0.99 -o tem
 subprocess.call('mv temp/cluster results/'+sys.argv[2]+'.proteins.fasta',shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 # finish
-
-# subprocess.call('rm -r temp/sequences',shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+subprocess.call('rm -r temp/sequences',shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 print('\nPredicted proteins and CDS in results directory\nFinish time: ' + str(datetime.now())+'\n')
