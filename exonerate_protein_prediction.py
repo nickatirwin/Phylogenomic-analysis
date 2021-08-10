@@ -173,6 +173,9 @@ print('Extracting coding regions...')
 subprocess.call('mkdir results/', shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 out = open('results/'+sys.argv[2]+'.cds.fasta','w')
 
+gffout = open('results/'+sys.argv[2]+'.gff','w')
+gffout.write('## gff-version 3.2.1\n## assembly: ' + sys.argv[2] + '\n')
+
 n = 1
 for seq in blast_d:
     gff = open('temp/sequences/'+seq+'.exon.gff','r').readlines()
@@ -205,11 +208,24 @@ for seq in blast_d:
             extract_d[extract_start] = extract_end
             extract_starts.append(extract_start)
         extract_starts.sort()
+        c = 1
         for s in extract_starts:
             sequence += homology_d[seq][s-1:extract_d[s]]
+            # output gff annotation
+            if blast_d[seq][3] == '+':
+                gff_start = str(blast_d[seq][1]+s)
+                gff_end = str(blast_d[seq][1]+extract_d[s])
+                gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_start+'\t'+gff_end+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+';Exon='+str(c)+'\n')
+            else:
+                gff_start = str(blast_d[seq][2]-s)
+                gff_end = str(blast_d[seq][2]-extract_d[s])
+                gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_start+'\t'+gff_end+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+';Exon='+str(len(extract_starts)-c)+'\n')
+            c += 1
         out.write('>seq'+str(n)+'.'+seq+'_'+blast_d[seq][0]+'\n'+sequence+'\n')
+        # ouput to gff fileseq
         n += 1
 out.close()
+gffout.close()
 
 # translate proteins using fastatranslate
 
@@ -276,5 +292,5 @@ subprocess.call('mv temp/cluster results/'+sys.argv[2]+'.proteins.fasta',shell =
 
 # finish
 
-subprocess.call('rm -r temp/sequences',shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+# subprocess.call('rm -r temp/sequences',shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 print('\nPredicted proteins and CDS in results directory\nFinish time: ' + str(datetime.now())+'\n')
