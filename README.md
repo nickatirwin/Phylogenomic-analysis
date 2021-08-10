@@ -25,6 +25,10 @@ Usage:
 ```
 python exonerate_protein_prediction.py [proteome.fasta] [genome.fasta] [threads] [genetic code (integer)]
 ```
+Example:
+```
+python exonerate_protein_prediction.py reference_proteome.fasta genome_scaffolds.fasta 20 6
+```
 ### fast_site_removal.py
 
 This script will remove a given proportion of the fastest evolving sites in an alignment. Site rates should be estimated using IQ-Tree (https://github.com/Cibiv/IQ-TREE) using the -wsr option (produces a .rate file). Removal of fast evolving sites can be useful for assessing long branch attraction and assessing the phylogenetic support for a given topology.
@@ -33,3 +37,22 @@ Usage:
 ```
 python fast_site_removal.py [alignment file] [.rate file] [proportion of sites to remove]
 ```
+Example:
+```
+python fast_site_removal.py fasta.aln fasta.aln.rate 0.25
+```
+### concatenation.py
+
+Concatenate a set of a alignments into a supermatrix for phylogenomic analyses. Each alignment should have a maximum of one sequence per species and species names should be denoted at the start of the headers (seperated by a period - e.g., >Homo_sapiens.proteinID).
+
+The output is a concatenated alignment (.fasta) and a statistics file (.species_stats.tab) noting the percentage of genes and sites present in each species.
+
+Usage:
+```
+python concatenation.py [list of alignment files]
+```
+Example (important to include the quotes):
+```
+python concatenation.py '*.fasta.aln'
+```
+
