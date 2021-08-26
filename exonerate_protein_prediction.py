@@ -209,18 +209,36 @@ for seq in blast_d:
             extract_starts.append(extract_start)
         extract_starts.sort()
         c = 1
+        gene_start = 1
+        gene_end = 1
         for s in extract_starts:
             sequence += homology_d[seq][s-1:extract_d[s]]
             # output gff annotation
             if blast_d[seq][3] == '+':
                 gff_start = str(blast_d[seq][1]+s)
                 gff_end = str(blast_d[seq][1]+extract_d[s])
-                gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_start+'\t'+gff_end+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+';Exon='+str(c)+'\n')
+                if str(c) == '1':
+                    gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_start+'\t'+gff_end+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'_exon'+str(c)+';Parent=seq'+str(n)+'\n')
+                    gene_start = gff_start
+                    gene_end = gff_end
+                else:
+                    gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_start+'\t'+gff_end+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'_exon'+str(c)+';Parent=seq'+str(n)+'\n')
+                    gene_end = gff_end
             else:
                 gff_start = str(blast_d[seq][2]-s)
                 gff_end = str(blast_d[seq][2]-extract_d[s])
-                gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_start+'\t'+gff_end+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+';Exon='+str(len(extract_starts)-c+1)+'\n')
+                if str(c) == '1':
+                    gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_end+'\t'+gff_start+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'_exon'+str(len(extract_starts)-c+1)+';Parent=seq'+seq'+str(n)+'\n')
+                    gene_start = gff_start
+                    gene_end = gff_end
+                else:
+                    gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_end+'\t'+gff_start+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'_exon'+str(len(extract_starts)-c+1)+';Parent=seq'+seq'+str(n)+'\n')
+                    gene_end = gff_end
             c += 1
+        if blast_d[seq][3] == '+':
+            gffout.write(blast_d[seq][0]+'\t.\tgene\t'+str(gene_start)+'\t'+str(gene_end)+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'\n')
+        else:
+            gffout.write(blast_d[seq][0]+'\t.\tgene\t'+str(gene_end)+'\t'+str(gene_start)+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'\n')
         out.write('>seq'+str(n)+'.'+seq+'_'+blast_d[seq][0]+'\n'+sequence+'\n')
         # ouput to gff fileseq
         n += 1
