@@ -14,6 +14,8 @@ dependencies:
 conda install -c bioconda exonerate
 # blast
 conda install -c bioconda blast
+# diamond
+conda install -c bioconda diamond
 # parallel
 conda install -c conda-forge parallel
 # cd-hit
