@@ -230,11 +230,11 @@ for seq in blast_d:
                 gff_start = str(blast_d[seq][2]-s)
                 gff_end = str(blast_d[seq][2]-extract_d[s])
                 if str(c) == '1':
-                    gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_end+'\t'+gff_start+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'_exon'+str(len(extract_starts)-c+1)+';Parent=seq'+seq'+str(n)+'\n')
+                    gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_end+'\t'+gff_start+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'_exon'+str(len(extract_starts)-c+1)+';Parent=seq'+str(n)+'\n')
                     gene_start = gff_start
                     gene_end = gff_end
                 else:
-                    gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_end+'\t'+gff_start+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'_exon'+str(len(extract_starts)-c+1)+';Parent=seq'+seq'+str(n)+'\n')
+                    gffout.write(blast_d[seq][0]+'\t.\texon\t'+gff_end+'\t'+gff_start+'\t.\t'+blast_d[seq][3]+'\t.\tID=seq'+str(n)+'_exon'+str(len(extract_starts)-c+1)+';Parent=seq'+str(n)+'\n')
                     gene_end = gff_end
             c += 1
         if blast_d[seq][3] == '+':
