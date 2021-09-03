@@ -38,10 +38,13 @@ def header_cleaner(s):
     clean_s = s.replace('*','').replace('|','_').replace(';','_').replace(',','_').replace('(','').replace(')','').replace('[','').replace(']','').replace('/','')
     return clean_s
 
-proteins = open(sys.argv[1],'r').read().split('>')
+proteins = open(sys.argv[1],'r').readlines()
 out = open('temp/proteins.renamed.fasta','w')
-for p in proteins[1:]:
-    out.write('>'+header_cleaner(p.split('\n')[0].split(' ')[0])+'\n'+p.split('\n',1)[1].strip().replace('*','')+'\n')
+for p in proteins:
+    if p.startswith('>'):
+        out.write(header_cleaner(p.split('\n')[0].split(' ')[0])+'\n')
+    else:
+        out.write(p.strip().replace('*','')+'\n')
 out.close()
 
 genome = open(sys.argv[2],'r').read().split('>')
