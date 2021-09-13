@@ -47,7 +47,7 @@ python fast_site_removal.py fasta.aln fasta.aln.rate 0.25
 
 Concatenate a set of a alignments into a supermatrix for phylogenomic analyses. Each alignment should have a maximum of one sequence per species and species names should be denoted at the start of the headers (seperated by a period - e.g., >Homo_sapiens.proteinID).
 
-The output is a concatenated alignment (.fasta) and a statistics file (.species_stats.tab) noting the percentage of genes and sites present in each species.
+The output is a concatenated alignment (.fasta) and a statistics files noting the percentage of genes and sites present in each species (.species_stats.tab) and the percentage of species with each gene (.gene_stats.tab).
 
 Usage:
 ```
