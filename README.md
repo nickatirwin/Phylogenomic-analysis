@@ -57,4 +57,15 @@ Example (important to include the quotes):
 ```
 python concatenation.py '*.fasta.aln'
 ```
+### dayhoff_recoding.py
 
+Recode an amino acid alignment using Dayhoff groups. This can be useful for dealing with or assessing saturation and compositional heterogeneity (e.g., see Susko & Roger 2007, MBE, https://doi.org/10.1093/molbev/msm144). The script can recode an alignment using 4-state or 6-state dayhoff groups.
+
+Usage:
+```
+python dayhoff_recoding.py [alignment file] [4 or 6]
+```
+Example:
+```
+python dayhoff_recoding.py fasta.aln 4
+```
