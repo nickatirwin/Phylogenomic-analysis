@@ -305,7 +305,7 @@ out = open('results/'+sys.argv[2]+'.proteins.fasta','w')
 for seq in seq_d:
     sequence = max(seq_d[seq][0].split('*')) # split at stop codons - take the longest uninterupted sequence
     if seq_d[seq][1] != 'NA':
-        out.write('>'+seq+'\n'+sequence+'\n')
+        out.write('>'+seq+'_length_'+str(len(sequence))+'\n'+sequence+'\n')
 out.close()
 
 # cluster proteins
