@@ -309,8 +309,8 @@ for seq in seq_d:
 out.close()
 
 # cluster proteins
-print('Clustering resulting proteins at 99%...')
-subprocess.call('cd-hit -i results/'+sys.argv[2]+'.proteins.fasta -c 0.99 -o temp/cluster -M 4000 -T ' + sys.argv[3], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+print('Clustering resulting proteins at 95%...')
+subprocess.call('cd-hit -i results/'+sys.argv[2]+'.proteins.fasta -c 0.95 -G 0 -aL 0.1 -o temp/cluster -T ' + sys.argv[3], shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 subprocess.call('mv temp/cluster results/'+sys.argv[2]+'.proteins.fasta',shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 # finish
